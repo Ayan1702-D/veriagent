@@ -20,6 +20,7 @@ dependencies = [
     "trafilatura>=1.8.0",
     "rapidfuzz>=3.6.0",
     "pyyaml>=6.0.1",
+    "duckduckgo-search>=5.0.0",
 ]
 
 [project.optional-dependencies]

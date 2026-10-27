@@ -32,6 +32,7 @@ ENV/
 .ruff_cache/
 .coverage
 htmlcov/
+.pytest-tmp/
 
 # Databases & Local Stores
 *.db
