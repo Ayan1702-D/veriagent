@@ -249,9 +249,7 @@ def test_llm_client_respects_budget_cap() -> None:
 
     def costly_completion(**kwargs: Any) -> dict[str, Any]:
         return {
-            "choices": [
-                {"message": {"content": '{"qualifiers": [], "subclaims": ["A"]}'}}
-            ],
+            "choices": [{"message": {"content": '{"qualifiers": [], "subclaims": ["A"]}'}}],
             "usage": {"total_tokens": 80},
         }
 

@@ -72,11 +72,11 @@ class CassetteCache:
         return self._dir / f"{key}.json"
 
     def get(
-    self,
-    node: str,
-    model: str,
-    messages: list[dict[str, str]],
-) -> CachedLLMResponse | None:
+        self,
+        node: str,
+        model: str,
+        messages: list[dict[str, str]],
+    ) -> CachedLLMResponse | None:
         """Return cached response in replay mode, or None in live/record modes."""
         if self._mode != "replay":
             return None
