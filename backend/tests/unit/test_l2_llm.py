@@ -190,7 +190,9 @@ def test_llm_client_retries_on_transient_error_and_validation_failure() -> None:
             "choices": [
                 {
                     "message": {
-                    "content": '```json\n{"qualifiers": ["always"], "subclaims": ["Fixed"]}\n```'
+                        "content": (
+                            '```json\n{"qualifiers": ["always"], "subclaims": ["Fixed"]}\n```'
+                        )
                     }
                 }
             ],
