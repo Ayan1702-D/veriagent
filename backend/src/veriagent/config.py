@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     openalex_mailto: str = ""
 
     # Default Run Budget Caps
+    quote_match_threshold: float = Field(default=85.0, ge=0.0, le=100.0)
     max_llm_tokens: int = Field(default=12000, ge=1)
     max_searches: int = Field(default=6, ge=1)
     max_fetches: int = Field(default=10, ge=1)
