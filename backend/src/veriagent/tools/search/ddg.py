@@ -34,7 +34,7 @@ class DuckDuckGoSearchProvider:
         results: list[SearchResult] = []
         try:
             # Note: verify DDGS.text parameters in duckduckgo_search official docs
-            with DDGS(timeout=self.timeout) as ddgs:
+            with DDGS(timeout=int(self.timeout)) as ddgs:
                 raw_hits = list(ddgs.text(query, max_results=max(1, limit)))
             for hit in raw_hits:
                 url = str(hit.get("href") or hit.get("url") or "")

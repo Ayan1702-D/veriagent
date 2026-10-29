@@ -34,7 +34,7 @@ class WikipediaSearchProvider:
             budget.consume("searches", 1)
 
         results: list[SearchResult] = []
-        params = {
+        params: dict[str, str | int] = {
             "action": "query",
             "list": "search",
             "srsearch": query,

@@ -40,7 +40,10 @@ class OpenAlexSearchProvider:
             budget.consume("searches", 1)
 
         results: list[SearchResult] = []
-        params = {"search": query, "per_page": max(1, limit)}
+        params: dict[str, str | int] = {
+            "search": query,
+            "per_page": max(1, limit),
+        }
         headers = {"User-Agent": "VeriAgent/0.1.0"}
         if self.mailto:
             headers["User-Agent"] = f"VeriAgent/0.1.0 (mailto:{self.mailto})"

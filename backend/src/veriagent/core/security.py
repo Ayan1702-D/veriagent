@@ -2,6 +2,8 @@
 
 import ipaddress
 import socket
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlparse
 
 from veriagent.core.errors import SecurityViolationError
@@ -23,7 +25,7 @@ def is_ip_blocked(ip_addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> boo
 
 def validate_and_resolve_url(
     url: str,
-    resolver: type[socket.getaddrinfo] = socket.getaddrinfo,
+    resolver: Callable[..., Any] = socket.getaddrinfo,
 ) -> str:
     """Validate URL scheme and resolve target host to verify it is public, else raise."""
     parsed = urlparse(url)
