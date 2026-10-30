@@ -20,9 +20,7 @@ class InMemoryRateLimitMiddleware(BaseHTTPMiddleware):
         self._requests: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
 
-    async def dispatch(
-        self, request: Request, call_next: Callable[[Request], object]
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[[Request], object]) -> Response:
         """Allow the request or return the standard 429 error envelope."""
         client_ip = request.client.host if request.client is not None else "unknown"
         now = time.monotonic()

@@ -76,8 +76,7 @@ def build_fake_llm() -> FakeLLM:
                 "items": [
                     {
                         "quote": (
-                            "Electric vehicles have lower lifetime emissions "
-                            "on renewable grids."
+                            "Electric vehicles have lower lifetime emissions on renewable grids."
                         ),
                         "stance": "supports",
                         "context_conditions": ["renewable grids"],
@@ -198,8 +197,7 @@ def test_replay_is_offline_and_reuses_persisted_report(
     assert provider.calls == search_calls
 
     event_types = [
-        event["type"]
-        for event in client.get(f"/api/runs/{replay_id}/audit").json()["events"]
+        event["type"] for event in client.get(f"/api/runs/{replay_id}/audit").json()["events"]
     ]
     assert event_types == ["replay_started", "replay_completed"]
 

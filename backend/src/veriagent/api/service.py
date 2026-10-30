@@ -104,9 +104,7 @@ class RunService:
                 type="run_failed",
                 payload={"error": str(exc), "budget_usage": usage},
             )
-            self.repository.set_status(
-                run_id, "failed", error=str(exc), budget_usage=usage
-            )
+            self.repository.set_status(run_id, "failed", error=str(exc), budget_usage=usage)
         finally:
             with self._budget_lock:
                 self._budgets.pop(run_id, None)
@@ -142,7 +140,5 @@ class RunService:
             self.repository.set_status(run_id, "completed", budget_usage=usage)
         except Exception as exc:
             logger.exception("Replay run %s failed", run_id)
-            recorder.record(
-                node="system", type="run_failed", payload={"error": str(exc)}
-            )
+            recorder.record(node="system", type="run_failed", payload={"error": str(exc)})
             self.repository.set_status(run_id, "failed", error=str(exc))

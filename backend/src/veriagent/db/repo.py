@@ -105,9 +105,7 @@ class RunRepository:
                         context_conditions=item.context_conditions,
                     )
                 )
-            session.merge(
-                ReportRow(run_id=run_id, report_json=report.model_dump(mode="json"))
-            )
+            session.merge(ReportRow(run_id=run_id, report_json=report.model_dump(mode="json")))
 
     def get_report(self, run_id: str) -> Report | None:
         """Load a final report."""
