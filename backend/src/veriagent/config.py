@@ -23,6 +23,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./veriagent.db"
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    rate_limit_requests: int = Field(default=60, ge=1)
+    rate_limit_window_seconds: float = Field(default=60.0, gt=0.0)
 
     # LLM Provider Keys
     gemini_api_key: str = ""
