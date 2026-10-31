@@ -1,12 +1,13 @@
 """Researcher node: executes queries, fetches, parses, ranks, and dedupes sources."""
 
+import hashlib
 from typing import Any
 
 from veriagent.core.errors import BudgetExceededError
 from veriagent.graph.state import GraphState
 from veriagent.ranking.dedupe import deduplicate_sources
 from veriagent.ranking.scorer import SourceScorer
-from veriagent.schemas import Source
+from veriagent.schemas import Source, SourceType
 from veriagent.tools.fetch import fetch_url
 from veriagent.tools.parse import parse_html_to_snapshot
 
@@ -48,6 +49,31 @@ async def run_researcher_node(state: GraphState) -> dict[str, Any]:
                     if hit.url in existing_sources or budget.exhausted():
                         continue
                     try:
+                        if hit.source_type == SourceType.CURATED and hit.snapshot_text:
+                            budget.consume("fetches", 1)
+                            snapshot_text = hit.snapshot_text.strip()
+                            if not snapshot_text:
+                                continue
+                            digest = hashlib.sha256(snapshot_text.encode("utf-8")).hexdigest()
+                            source_obj = Source(
+                                url=hit.url,
+                                title=hit.title,
+                                domain="curated",
+                                snapshot_hash=f"sha256:{digest}",
+                                rank_score=hit.rank_score if hit.rank_score is not None else 0.8,
+                                source_type=SourceType.CURATED,
+                            )
+                            fetched_candidates.append((source_obj, snapshot_text))
+                            snapshots[source_obj.id] = snapshot_text
+                            existing_sources[source_obj.url] = source_obj
+                            if recorder is not None:
+                                recorder.record(
+                                    node="researcher",
+                                    type="curated_chunk_loaded",
+                                    payload={"url": hit.url, "title": hit.title},
+                                )
+                            continue
+
                         doc = await fetch_fn(
                             url=hit.url,
                             budget=budget,

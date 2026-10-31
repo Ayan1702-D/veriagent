@@ -1,0 +1,1 @@
+{"id":"global-ev-sales-2024","claim":"Global electric car sales exceeded 17 million in 2024.","expected_verdict":"SUPPORTED","human_verdict":"SUPPORTED","expected_urls":["https://www.iea.org/reports/global-ev-outlook-2025/trends-in-electric-car-markets"],"expected_domains":["iea.org"],"notes":"Small deterministic smoke case for the replay-mode CI gate."}

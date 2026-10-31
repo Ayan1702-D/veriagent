@@ -43,6 +43,7 @@ class SourceType(StrEnum):
     SECONDARY = "secondary"
     NEWS = "news"
     BLOG = "blog"
+    CURATED = "curated"
 
 
 class Claim(BaseModel):

@@ -1,0 +1,31 @@
+{
+  "case_id": "global-ev-sales-2024",
+  "sources": [
+    {
+      "url": "https://www.iea.org/reports/global-ev-outlook-2025/trends-in-electric-car-markets",
+      "domain": "iea.org"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-sales-quote",
+      "source_id": "iea-global-ev-outlook",
+      "quote": "Electric car sales topped 17 million worldwide in 2024",
+      "date": "2025",
+      "stance": "supports",
+      "quote_verified": true,
+      "context_conditions": []
+    }
+  ],
+  "findings": [
+    {
+      "subclaim_id": "global-ev-sales-2024",
+      "supporting": ["ev-sales-quote"],
+      "contradicting": [],
+      "gaps": [],
+      "verdict": "SUPPORTED",
+      "confidence": 0.98
+    }
+  ],
+  "verdict": "SUPPORTED"
+}

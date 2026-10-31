@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from veriagent.audit.recorder import AuditRecorder
 from veriagent.core.budget import BudgetGovernor
+from veriagent.schemas import SourceType
 
 
 class SearchResult(BaseModel):
@@ -17,6 +18,9 @@ class SearchResult(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     snippet: str = Field(default="", max_length=5000)
     provider: str = Field(min_length=1, max_length=50)
+    source_type: SourceType | None = None
+    snapshot_text: str | None = Field(default=None, max_length=100_000, exclude=True)
+    rank_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 @runtime_checkable

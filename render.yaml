@@ -1,0 +1,39 @@
+services:
+  - type: web
+    runtime: docker
+    name: veriagent-api
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:////app/data/veriagent.db
+      - key: CORS_ORIGINS
+        sync: false
+      - key: RATE_LIMIT_REQUESTS
+        value: "30"
+      - key: RATE_LIMIT_WINDOW_SECONDS
+        value: "60"
+      - key: MAX_LLM_TOKENS
+        value: "6000"
+      - key: MAX_SEARCHES
+        value: "4"
+      - key: MAX_FETCHES
+        value: "6"
+      - key: MAX_LOOPS
+        value: "1"
+      - key: MAX_SECONDS
+        value: "45"
+      - key: DEMO_REPLAY_ENABLED
+        value: "true"
+      - key: CORPUS_ENABLED
+        value: "true"
+      - key: CORPUS_DIR
+        value: /app/corpus
+      - key: CHROMA_PATH
+        value: /app/chroma_data
+      - key: LOG_LEVEL
+        value: INFO

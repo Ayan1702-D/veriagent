@@ -15,8 +15,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -33,12 +33,23 @@ ENV/
 .coverage
 htmlcov/
 .pytest-tmp/
+.pytest-tmp-*/
+
+# Evaluation reports (keep the checked-in regression baseline)
+backend/eval/reports/eval-*.json
+backend/eval/reports/eval-*.md
+backend/eval/reports/latest.json
+backend/eval/reports/latest.md
+backend/eval/reports/corpus-comparison-*.json
+backend/eval/reports/corpus-comparison-*.md
 
 # Databases & Local Stores
 *.db
 *.sqlite
 *.sqlite3
 chroma_data/
+backend/corpus/*
+!backend/corpus/.gitkeep
 
 # Node / Next.js
 node_modules/

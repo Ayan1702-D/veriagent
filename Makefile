@@ -1,4 +1,4 @@
-.PHONY: dev test lint eval
+.PHONY: dev test lint eval smoke
 
 PYTHON ?= python3
 
@@ -13,3 +13,6 @@ lint:
 
 eval:
 	cd backend && $(PYTHON) -m eval.run_eval
+
+smoke:
+	$(PYTHON) scripts/smoke_test.py http://localhost:8000

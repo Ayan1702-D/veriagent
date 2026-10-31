@@ -17,6 +17,7 @@ from veriagent.api.schemas import (
 )
 from veriagent.api.service import RunService
 from veriagent.config import Settings
+from veriagent.demo import demo_run_id_for_claim
 from veriagent.schemas import Claim, RunBudget
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -79,8 +80,16 @@ async def create_run(
     budget = _capped_budget(body.budget, _settings(request))
     claim = Claim(text=body.claim)
     run_id = uuid4().hex
-    service.repository.create_run(run_id, claim, budget)
-    background_tasks.add_task(service.execute, run_id, claim, budget)
+    demo_source_id = (
+        demo_run_id_for_claim(body.claim) if _settings(request).demo_replay_enabled else None
+    )
+    demo_source = service.repository.get_run(demo_source_id) if demo_source_id is not None else None
+    if demo_source_id is not None and demo_source is not None and demo_source.status == "completed":
+        service.repository.create_run(run_id, claim, budget, replay_of=demo_source_id)
+        background_tasks.add_task(service.execute_replay, run_id, demo_source_id)
+    else:
+        service.repository.create_run(run_id, claim, budget)
+        background_tasks.add_task(service.execute, run_id, claim, budget)
     return RunAcceptedResponse(run_id=run_id)
 
 
