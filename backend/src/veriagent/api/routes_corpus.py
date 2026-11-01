@@ -19,7 +19,7 @@ _READ_BLOCK_SIZE = 64 * 1024
 _ALLOWED_CONTENT_TYPES = {
     ".pdf": {"application/pdf"},
     ".txt": {"text/plain"},
-    ".md": {"text/markdown", "text/plain"},
+    ".md": {"text/markdown", "text/x-markdown", "text/plain"},
 }
 
 

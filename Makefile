@@ -1,6 +1,6 @@
 .PHONY: dev test lint eval smoke
 
-PYTHON ?= python3
+PYTHON ?= python
 
 dev:
 	cd backend && uvicorn veriagent.main:app --reload --host 0.0.0.0 --port 8000

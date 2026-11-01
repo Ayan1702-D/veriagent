@@ -4,9 +4,9 @@ VeriAgent investigates factual claims and returns a cited verdict with an inspec
 
 ## Demo
 
-> **Demo GIF placeholder** — add the final recording at `docs/assets/veriagent-demo.gif`.
-
-<!-- Replace this comment with: ![VeriAgent demo](docs/assets/veriagent-demo.gif) -->
+The repository includes three pre-seeded replay claims that work without model or search API
+credentials. A 60–90 second product recording is still pending; when recorded, place it at
+`docs/assets/veriagent-demo.gif` and replace this paragraph with the image.
 
 ## Problem
 
@@ -27,10 +27,22 @@ VeriAgent treats verification as a bounded research process rather than a single
 6. The reporter issues one of five verdicts with limitations and citations.
 7. Audit events and budget usage are persisted and streamed to the frontend.
 
-> **Architecture diagram placeholder** — add the final diagram at
-> `docs/assets/veriagent-architecture.svg`.
-
-<!-- Replace this comment with: ![VeriAgent architecture](docs/assets/veriagent-architecture.svg) -->
+```mermaid
+flowchart LR
+    UI[Next.js frontend] -->|REST + SSE| API[FastAPI]
+    API --> DB[(SQLite / SQLAlchemy)]
+    API --> GRAPH[LangGraph workflow]
+    GRAPH --> PLAN[Plan]
+    PLAN --> SEARCH[Web + curated corpus]
+    SEARCH --> EXTRACT[Extract evidence]
+    EXTRACT --> CHECK[Contradiction + quote match]
+    CHECK --> REPORT[Five-state verdict]
+    REPORT --> DB
+    DB -->|audit, budget, report| API
+    CORPUS[PDF / TXT / MD] --> EMBED[FastEmbed + ChromaDB]
+    EMBED --> SEARCH
+    REPLAY[Recorded artifacts] -->|no network| API
+```
 
 ## What makes it different
 
@@ -108,12 +120,12 @@ npm run dev
 Run checks from the repository root:
 
 ```powershell
-Set-Location backend
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m ruff check src tests eval
-.\.venv\Scripts\python.exe -m mypy
-.\.venv\Scripts\python.exe -m eval.run_eval --mode replay
+make lint
+make test
+make eval
 ```
+
+On Windows, the MinGW executable may be named `mingw32-make`; it accepts the same targets.
 
 Upload a curated document and run a corpus ablation evaluation:
 
@@ -131,20 +143,23 @@ variable list.
 
 ## Evaluation results
 
-The replay evaluation is regression-gated in pull requests. Replace the placeholders below with
-results from the reviewed dataset and record the dataset version with each update.
+The current regression gate is a deterministic smoke test, not a research benchmark. It contains
+one implementation-authored EV claim and has not received independent label review. These numbers
+prove that the replay and metric pipeline are stable; they do not estimate general accuracy.
 
 | Metric | Result | Dataset/version |
 |---|---:|---|
-| Retrieval precision | `TBD` | `TBD` |
-| Citation validity | `TBD` | `TBD` |
-| Classification accuracy | `TBD` | `TBD` |
-| Unsupported-claim rate | `TBD` | `TBD` |
-| Exact human-verdict agreement | `TBD` | `TBD` |
-| Adjacent human-verdict agreement | `TBD` | `TBD` |
+| Retrieval precision | `1.000` | `smoke-v1`, n=1 |
+| Citation validity | `1.000` | `smoke-v1`, n=1 |
+| Classification accuracy | `1.000` | `smoke-v1`, n=1 |
+| Unsupported-claim rate | `0.000` | `smoke-v1`, n=1 |
+| Exact human-verdict agreement | `1.000` | `smoke-v1`, n=1 |
+| Adjacent human-verdict agreement | `0.000` | `smoke-v1`, n=1 |
+| Curated-corpus ablation | `Not available` | paired replay artifacts not yet recorded |
 
 Evaluation reports are written to `backend/eval/reports/` as JSON and Markdown. The confusion
-matrix and per-claim results are included in each report.
+matrix and per-claim results are included in each report. See
+[`docs/eval-report.md`](docs/eval-report.md) for construction, review status, and interpretation.
 
 ## Limitations and honest caveats
 
@@ -162,6 +177,12 @@ matrix and per-claim results are included in each report.
   production deployment.
 - Free hosting can introduce cold starts, ephemeral storage, and external API limits.
 - The seeded demo reports are fixed examples, not fresh investigations.
+- Live claims require a configured LLM provider. Without one, non-demo runs terminate at the
+  planner; the three seeded replay claims still work.
+- The checked-in evaluation set has one claim and no independent reviewer. Its perfect scores
+  must not be presented as evidence of broad accuracy.
+- A with/without-corpus result is not published because the paired replay artifacts have not been
+  recorded. Copying the same replay into both groups would not be a valid ablation.
 - The public API has no user accounts or authorization layer. Do not store sensitive claims.
 
 VeriAgent is a research tool, not a substitute for professional medical, legal, financial, or

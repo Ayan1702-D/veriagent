@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
 
     # Model Routing
-    cheap_model: str = "gemini/gemini-1.5-flash"
-    strong_model: str = "gemini/gemini-1.5-pro"
+    cheap_model: str = "gemini/gemini-3.5-flash-lite"
+    strong_model: str = "gemini/gemini-3.8-flash"
 
     # Optional Tool Keys
     tavily_api_key: str = ""

@@ -1,4 +1,7 @@
 {
+  "dataset": "smoke-v1",
+  "dataset_size": 1,
+  "mode": "replay:without-curated-corpus",
   "retrieval_precision": 1.0,
   "citation_validity": 1.0,
   "classification_accuracy": 1.0,

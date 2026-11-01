@@ -23,6 +23,7 @@ dependencies = [
     "duckduckgo-search>=5.0.0",
     "chromadb>=1.0.0",
     "fastembed>=0.7.0",
+    "numpy>=1.22.5,<2.5",
     "pypdf>=5.0.0",
     "python-multipart>=0.0.9",
 ]
@@ -32,7 +33,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "ruff>=0.3.0",
-    "mypy>=1.8.0",
+    "mypy>=1.8.0,<2",
     "types-PyYAML>=6.0.12",
 ]
 
@@ -51,6 +52,7 @@ ignore = []
 [tool.mypy]
 python_version = "3.11"
 strict = true
+disallow_untyped_decorators = false
 warn_return_any = true
 warn_unused_configs = true
 mypy_path = "src"
@@ -62,4 +64,5 @@ minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra -q"

@@ -1,5 +1,7 @@
 # VeriAgent free-tier deployment
 
+Free-tier behavior was re-checked against the providers' official documentation on 2026-11-01.
+
 This setup uses a Docker-based Render web service for the API and Vercel for the
 Next.js frontend. The three claims shown on the landing page are pre-seeded and
 automatically run in offline replay mode. They do not require an LLM key, a search
@@ -64,6 +66,18 @@ use managed PostgreSQL for durable production history. See the official
 [Render free-tier limitations](https://render.com/docs/free) and
 [Blueprint reference](https://render.com/docs/blueprint-spec).
 
+Current Render free-plan constraints that affect this project:
+
+- the service spins down after 15 minutes without inbound HTTP or WebSocket traffic;
+- waking it normally takes about one minute;
+- each workspace receives 750 free instance-hours per calendar month;
+- the filesystem is lost on restart, redeploy, or spin-down, including SQLite, uploads, and
+  Chroma data;
+- a free Render Postgres database is 1 GB, has no backups, and expires after 30 days.
+
+Do not add artificial keep-alive traffic to work around spin-down. The replay seed makes a cold,
+empty instance useful after every restart.
+
 ## 3. Deploy the frontend to Vercel
 
 Run these commands from the repository root, replacing the URL with the Render URL:
@@ -85,6 +99,13 @@ replace `CORS_ORIGINS` in Render with the exact origin and redeploy the backend.
 not use `*`. Preview deployments need their own exact origin added to the JSON array.
 Vercel documents both [monorepo root directories](https://vercel.com/docs/monorepos)
 and [CLI deployments](https://vercel.com/docs/projects/deploy-from-cli).
+
+The Vercel Hobby plan is for personal, non-commercial projects. At the time of this check it
+includes 4 active CPU-hours, 360 GB-hours of provisioned memory, one million function invocations,
+and 100 deployments per day; limits can change, so review the official
+[Hobby plan](https://vercel.com/docs/plans/hobby) and [limits](https://vercel.com/docs/limits)
+before a public launch. This frontend is primarily static and does not proxy verification work
+through Vercel Functions.
 
 ## 4. Verify the deployed pair
 
@@ -126,7 +147,7 @@ will contain `replay_of` with one of the `demo-*` source IDs and zero network/LL
 | `CORPUS_MAX_DOCUMENT_BYTES` | Render | No | No | Per-upload size cap; default 10 MiB. |
 | `CORPUS_CHUNK_SIZE`, `CORPUS_CHUNK_OVERLAP` | Render | No | No | Character chunking controls. |
 | `CORPUS_TOP_K` | Render | No | No | Curated chunks returned per search. |
-| `CHEAP_MODEL`, `STRONG_MODEL` | Render | No | Live only | LiteLLM model identifiers. |
+| `CHEAP_MODEL`, `STRONG_MODEL` | Render | No | Live only | LiteLLM model identifiers. Defaults follow the stable Gemini catalog; re-check availability before each release. |
 | `GEMINI_API_KEY` | Render | **Yes** | Live only | Gemini credential. |
 | `GROQ_API_KEY` | Render | **Yes** | Live only | Groq credential. |
 | `OPENROUTER_API_KEY` | Render | **Yes** | Live only | OpenRouter credential. |
