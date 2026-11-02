@@ -29,6 +29,18 @@ services:
         value: "45"
       - key: DEMO_REPLAY_ENABLED
         value: "true"
+      - key: CHEAP_MODEL
+        value: gemini/gemini-3.6-flash
+      - key: STRONG_MODEL
+        value: gemini/gemini-3.8-flash
+      - key: EXTRACTOR_MODEL
+        value: gemini/gemini-3.6-flash
+      - key: FALLBACK_MODELS
+        value: ""
+      - key: LLM_MODE
+        value: live
+      - key: CASSETTE_DIR
+        value: /app/cassettes
       - key: CORPUS_ENABLED
         value: "true"
       - key: CORPUS_DIR

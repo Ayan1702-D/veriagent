@@ -35,7 +35,14 @@ from veriagent.tools.search import (
 
 
 def _default_llm(settings: Settings) -> LLMClient:
-    return LLMClient(ModelRouter(settings), cache=CassetteCache(mode="record"))
+    return LLMClient(
+        ModelRouter(settings),
+        cache=CassetteCache(
+            mode=settings.llm_mode,
+            cassette_dir=Path(settings.cassette_dir),
+        ),
+        fallback_models=settings.fallback_model_list(),
+    )
 
 
 def _default_search_providers(

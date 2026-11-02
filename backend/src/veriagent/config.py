@@ -45,8 +45,12 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
 
     # Model Routing
-    cheap_model: str = "gemini/gemini-3.5-flash-lite"
+    cheap_model: str = "gemini/gemini-3.6-flash"
     strong_model: str = "gemini/gemini-3.8-flash"
+    extractor_model: str = ""
+    fallback_models: str = ""
+    llm_mode: Literal["live", "record", "replay"] = "live"
+    cassette_dir: str = "tests/fixtures/cassettes"
 
     # Optional Tool Keys
     tavily_api_key: str = ""
@@ -95,6 +99,23 @@ class Settings(BaseSettings):
             max_loops=self.max_loops,
             max_seconds=self.max_seconds,
         )
+
+    def extractor_model_name(self) -> str:
+        """Return the extractor override, ignoring an unchanged example placeholder."""
+        candidate = self.extractor_model.strip()
+        return (
+            candidate
+            if candidate and "<" not in candidate and ">" not in candidate
+            else self.cheap_model
+        )
+
+    def fallback_model_list(self) -> list[str]:
+        """Parse the ordered comma-separated fallback chain, excluding placeholders."""
+        return [
+            candidate
+            for raw in self.fallback_models.split(",")
+            if (candidate := raw.strip()) and "<" not in candidate and ">" not in candidate
+        ]
 
 
 @lru_cache(maxsize=1)

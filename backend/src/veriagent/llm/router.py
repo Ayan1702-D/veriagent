@@ -3,7 +3,7 @@
 from veriagent.config import Settings
 
 _STRONG_NODES: frozenset[str] = frozenset({"contradiction", "reporter"})
-_CHEAP_NODES: frozenset[str] = frozenset({"planner", "extractor", "verifier"})
+_CHEAP_NODES: frozenset[str] = frozenset({"planner", "verifier"})
 
 
 class ModelRouter:
@@ -16,6 +16,8 @@ class ModelRouter:
     def model_for(self, node: str) -> str:
         """Return the configured LiteLLM model identifier for `node`."""
         normalized = node.strip().lower()
+        if normalized == "extractor":
+            return self._settings.extractor_model_name()
         if normalized in _STRONG_NODES:
             return self._settings.strong_model
         if normalized in _CHEAP_NODES:

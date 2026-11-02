@@ -17,9 +17,24 @@ The simplest path is Gemini because the checked-in defaults use Gemini model IDs
 The current defaults are:
 
 ```dotenv
-CHEAP_MODEL=gemini/gemini-3.5-flash-lite
+CHEAP_MODEL=gemini/gemini-3.6-flash
 STRONG_MODEL=gemini/gemini-3.8-flash
+EXTRACTOR_MODEL=gemini/gemini-3.6-flash
+FALLBACK_MODELS=
+LLM_MODE=live
+CASSETTE_DIR=tests/fixtures/cassettes
 ```
+
+This routing keeps the high-frequency and extraction stages on Gemini 3.6 Flash and reserves
+Gemini 3.8 Flash for contradiction analysis and report synthesis. `FALLBACK_MODELS` is deliberately
+blank: only add a fallback after confirming that it accepts LiteLLM's `response_format` parameter
+and passes the structured-output tests. Every live fallback also needs its provider credential.
+
+The free Nemotron endpoints are useful candidates for future compatibility testing, but their
+current OpenRouter endpoints do not enforce `response_format`. If they are enabled later, use the
+full LiteLLM identifiers `openrouter/nvidia/nemotron-3.5-lightning:free` and
+`openrouter/nvidia/nemotron-3-ultra-550b-a55b:free`, then rerun the evaluation before presenting
+the configuration as supported.
 
 Alternatives require both a key and compatible LiteLLM model identifiers:
 

@@ -147,7 +147,11 @@ will contain `replay_of` with one of the `demo-*` source IDs and zero network/LL
 | `CORPUS_MAX_DOCUMENT_BYTES` | Render | No | No | Per-upload size cap; default 10 MiB. |
 | `CORPUS_CHUNK_SIZE`, `CORPUS_CHUNK_OVERLAP` | Render | No | No | Character chunking controls. |
 | `CORPUS_TOP_K` | Render | No | No | Curated chunks returned per search. |
-| `CHEAP_MODEL`, `STRONG_MODEL` | Render | No | Live only | LiteLLM model identifiers. Defaults follow the stable Gemini catalog; re-check availability before each release. |
+| `CHEAP_MODEL`, `STRONG_MODEL` | Render | No | Live only | Defaults are Gemini 3.6 Flash for routine stages and Gemini 3.8 Flash for synthesis; re-check availability before each release. |
+| `EXTRACTOR_MODEL` | Render | No | No | Defaults to Gemini 3.6 Flash; blank uses `CHEAP_MODEL`. |
+| `FALLBACK_MODELS` | Render | No | No | Ordered comma-separated LiteLLM models tried after the routed primary model. Leave blank unless each fallback passes structured-output tests. |
+| `LLM_MODE` | Render | No | Yes | `live`, `record`, or `replay`; production normally uses `live`. |
+| `CASSETTE_DIR` | Render | No | Record/replay only | Directory containing deterministic LLM cassette JSON files. |
 | `GEMINI_API_KEY` | Render | **Yes** | Live only | Gemini credential. |
 | `GROQ_API_KEY` | Render | **Yes** | Live only | Groq credential. |
 | `OPENROUTER_API_KEY` | Render | **Yes** | Live only | OpenRouter credential. |

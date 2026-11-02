@@ -22,7 +22,7 @@ def test_production_cors_requires_explicit_https_origins() -> None:
 
 
 def test_default_budget_is_conservative_for_free_tiers() -> None:
-    budget = Settings().default_budget()
+    budget = Settings.model_construct().default_budget()
 
     assert budget.max_llm_tokens == 6000
     assert budget.max_searches == 4

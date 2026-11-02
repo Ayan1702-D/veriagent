@@ -1,7 +1,7 @@
 """LiteLLM client wrapper with retries, Pydantic JSON validation, caching, and audit hooks."""
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Protocol, TypeVar, runtime_checkable
 
@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 from veriagent.audit.recorder import AuditRecorder
 from veriagent.core.budget import BudgetGovernor
 from veriagent.core.errors import VeriAgentError
-from veriagent.llm.cache import CassetteCache
+from veriagent.llm.cache import CassetteCache, CassetteMissError
 from veriagent.llm.router import ModelRouter
 
 T = TypeVar("T", bound=BaseModel)
@@ -86,6 +86,7 @@ class LLMClient:
         max_delay: float = 4.0,
         sleep_fn: Callable[[float], None] = time.sleep,
         completion_fn: Callable[..., Any] | None = None,
+        fallback_models: Sequence[str] = (),
     ) -> None:
         """Initialize client with router, optional cassette cache, and retry backoff."""
         self._router = router
@@ -96,37 +97,49 @@ class LLMClient:
         self._sleep = sleep_fn
         # Note: verify litellm.completion kwargs in official LiteLLM docs when upgrading
         self._completion_fn = completion_fn or litellm.completion
+        self._fallback_models = tuple(
+            candidate.strip() for candidate in fallback_models if candidate.strip()
+        )
 
     def _call_with_backoff(
         self,
         node: str,
         model: str,
         messages: list[dict[str, str]],
-    ) -> tuple[str, int, bool]:
-        """Return (content, tokens, from_cache) using cache or retrying LiteLLM with backoff."""
-        cached = self._cache.get(node, model, messages)
-        if cached is not None:
-            return cached.content, cached.tokens, True
-
+    ) -> tuple[str, int, bool, str]:
+        """Return content and the model used, trying the configured fallback chain in order."""
+        models = tuple(dict.fromkeys((model, *self._fallback_models)))
         last_err: Exception | None = None
-        for attempt in range(self._max_retries):
+        for candidate in models:
             try:
-                raw_resp = self._completion_fn(
-                    model=model,
-                    messages=messages,
-                    response_format={"type": "json_object"},
-                )
-                content, tokens = _extract_content_and_tokens(raw_resp)
-                self._cache.put(node, model, messages, content, tokens)
-                return content, tokens, False
-            except Exception as exc:
+                cached = self._cache.get(node, candidate, messages)
+            except CassetteMissError as exc:
                 last_err = exc
-                if attempt + 1 < self._max_retries:
-                    delay = min(self._max_delay, self._base_delay * (2**attempt))
-                    self._sleep(delay)
+                continue
+            if cached is not None:
+                return cached.content, cached.tokens, True, candidate
+
+            for attempt in range(self._max_retries):
+                try:
+                    raw_resp = self._completion_fn(
+                        model=candidate,
+                        messages=messages,
+                        response_format={"type": "json_object"},
+                    )
+                    content, tokens = _extract_content_and_tokens(raw_resp)
+                    self._cache.put(node, candidate, messages, content, tokens)
+                    return content, tokens, False, candidate
+                except Exception as exc:
+                    last_err = exc
+                    if attempt + 1 < self._max_retries:
+                        delay = min(self._max_delay, self._base_delay * (2**attempt))
+                        self._sleep(delay)
+
+        if self._cache.mode == "replay" and isinstance(last_err, CassetteMissError):
+            raise last_err
 
         raise VeriAgentError(
-            f"LLM call failed after {self._max_retries} attempts for node={node!r}"
+            f"LLM call failed for node={node!r} across {len(models)} configured model(s)"
         ) from last_err
 
     def complete(
@@ -145,7 +158,9 @@ class LLMClient:
         working_messages = [dict(m) for m in messages]
 
         for validation_attempt in range(2):
-            content, tokens, from_cache = self._call_with_backoff(node, model, working_messages)
+            content, tokens, from_cache, used_model = self._call_with_backoff(
+                node, model, working_messages
+            )
 
             if budget is not None:
                 budget.consume("tokens", tokens)
@@ -155,7 +170,7 @@ class LLMClient:
                     node=node,
                     type="llm_call",
                     payload={
-                        "model": model,
+                        "model": used_model,
                         "attempt": validation_attempt + 1,
                         "cached": from_cache,
                         "response_model": response_model.__name__,

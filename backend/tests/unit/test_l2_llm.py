@@ -35,17 +35,34 @@ def test_router_maps_cheap_and_strong_models_from_settings() -> None:
     settings = Settings(
         cheap_model="groq/llama-3.1-8b-instant",
         strong_model="gemini/gemini-1.5-pro",
+        extractor_model="groq/llama-3.1-8b-instant-extractor",
     )
     router = ModelRouter(settings)
 
     assert router.model_for("planner") == "groq/llama-3.1-8b-instant"
-    assert router.model_for("extractor") == "groq/llama-3.1-8b-instant"
+    assert router.model_for("extractor") == "groq/llama-3.1-8b-instant-extractor"
     assert router.model_for("verifier") == "groq/llama-3.1-8b-instant"
     assert router.model_for("contradiction") == "gemini/gemini-1.5-pro"
     assert router.model_for("reporter") == "gemini/gemini-1.5-pro"
 
     with pytest.raises(ValueError, match="Unknown LLM node"):
         router.model_for("unknown_node")
+
+
+def test_model_placeholders_are_ignored_and_fallbacks_are_parsed() -> None:
+    """Keep copied example placeholders inert while preserving an ordered fallback chain."""
+    settings = Settings(
+        cheap_model="gemini/cheap",
+        extractor_model="groq/<small-fast-model-id>",
+        fallback_models=" groq/backup , openrouter/free:free, groq/backup ",
+    )
+
+    assert ModelRouter(settings).model_for("extractor") == "gemini/cheap"
+    assert settings.fallback_model_list() == [
+        "groq/backup",
+        "openrouter/free:free",
+        "groq/backup",
+    ]
 
 
 def test_prompt_stubs_exist_and_load() -> None:
@@ -222,6 +239,43 @@ def test_llm_client_retries_on_transient_error_and_validation_failure() -> None:
     assert sleeps == [0.25]
     assert budget.usage()["tokens"] == 25
     assert len(recorder.events()) == 2
+
+
+def test_llm_client_uses_fallback_model_and_audits_actual_model() -> None:
+    """Move to the next configured model after the primary exhausts its retries."""
+    settings = Settings(cheap_model="test/primary", strong_model="test/strong")
+    attempts: list[str] = []
+
+    def completion(**kwargs: Any) -> dict[str, Any]:
+        model = str(kwargs["model"])
+        attempts.append(model)
+        if model == "test/primary":
+            raise RuntimeError("primary unavailable")
+        return {
+            "choices": [
+                {"message": {"content": '{"qualifiers": [], "subclaims": ["fallback worked"]}'}}
+            ],
+            "usage": {"total_tokens": 7},
+        }
+
+    recorder = AuditRecorder(run_id="run-fallback")
+    client = LLMClient(
+        ModelRouter(settings),
+        max_retries=1,
+        completion_fn=completion,
+        fallback_models=["test/backup"],
+    )
+
+    result = client.complete(
+        node="planner",
+        messages=[{"role": "user", "content": "Plan"}],
+        response_model=SamplePlanOutput,
+        recorder=recorder,
+    )
+
+    assert result.subclaims == ["fallback worked"]
+    assert attempts == ["test/primary", "test/backup"]
+    assert recorder.events()[0].payload["model"] == "test/backup"
 
 
 def test_llm_client_raises_validation_error_after_second_bad_output() -> None:

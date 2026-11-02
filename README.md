@@ -1,12 +1,19 @@
 # VeriAgent
 
-VeriAgent investigates factual claims and returns a cited verdict with an inspectable audit trail.
+VeriAgent is a production-shaped claim-investigation demo that returns a five-state verdict,
+source-linked evidence, and an inspectable audit trail.
 
 ## Demo
 
 The repository includes three pre-seeded replay claims that work without model or search API
 credentials. A 60–90 second product recording is still pending; when recorded, place it at
 `docs/assets/veriagent-demo.gif` and replace this paragraph with the image.
+
+This is a portfolio project, not a hosted fact-checking service. Its scope is to demonstrate the
+engineering of a bounded, observable agent workflow: typed state, evidence provenance, live
+progress, resource controls, deterministic replay, evaluation hooks, and deployment-shaped
+configuration. It does not claim production uptime or independently measured fact-checking
+accuracy.
 
 ## Problem
 
@@ -48,8 +55,8 @@ flowchart LR
 
 1. **Five verdicts.** Results can be `SUPPORTED`, `REFUTED`, `MIXED`, `CONDITIONAL`, or
    `INSUFFICIENT`; the system is not restricted to true/false output.
-2. **Verified quotations.** Evidence quotes are matched against stored source text before they
-   can support a conclusion.
+2. **Snapshot-matched quotations.** Evidence quotes must match stored source text before they can
+   support a conclusion. This verifies textual presence, not source truthfulness.
 3. **Counter-evidence search.** Contradictions and boundary conditions are investigated as a
    separate workflow stage.
 4. **Source independence controls.** Duplicate URLs and repeated publications are reduced before
@@ -60,13 +67,17 @@ flowchart LR
 7. **Offline replay.** Completed runs and seeded demonstrations can be reproduced without network
    or model calls.
 
+Together, these are the project's demonstrated capabilities. General fact-checking accuracy,
+production availability, and resistance to every form of source manipulation remain outside the
+evidence currently available in this repository.
+
 ## Tech stack
 
 | Area | Technology |
 |---|---|
 | API | Python 3.11, FastAPI, Pydantic v2 |
 | Workflow | LangGraph |
-| Models | LiteLLM with Gemini, Groq, or OpenRouter credentials |
+| Models | LiteLLM; Gemini 3.6 Flash for routine stages and Gemini 3.8 Flash for synthesis |
 | Retrieval | DuckDuckGo, Wikipedia, OpenAlex, optional Tavily |
 | Curated RAG | FastEmbed, ChromaDB, pypdf |
 | Persistence | SQLAlchemy, SQLite by default |
@@ -176,6 +187,8 @@ matrix and per-claim results are included in each report. See
 - SQLite is suitable for local use and a stateless demo, but not for durable multi-instance
   production deployment.
 - Free hosting can introduce cold starts, ephemeral storage, and external API limits.
+- Free model quotas are suitable for reviewer traffic and demonstrations, not sustained public
+  usage. The replay path is the reliable showcase path when providers are unavailable.
 - The seeded demo reports are fixed examples, not fresh investigations.
 - Live claims require a configured LLM provider. Without one, non-demo runs terminate at the
   planner; the three seeded replay claims still work.
