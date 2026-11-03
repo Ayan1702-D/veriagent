@@ -1,0 +1,17 @@
+{
+  "content": "{\"qualifiers\": [\"regardless\"], \"subclaims\": [\"Grid mix\"]}",
+  "key": "5558447d84f7eb137bcf0aa367f55b9354ee9c06f2cb4602ff8281589462bc5a",
+  "messages": [
+    {
+      "content": "Return only JSON: a JSON object matching this schema: {\"$defs\":{\"Verdict\":{\"description\":\"Calibrated verification verdict taxonomy.\",\"enum\":[\"SUPPORTED\",\"REFUTED\",\"MIXED\",\"CONDITIONAL\",\"INSUFFICIENT\"],\"title\":\"Verdict\",\"type\":\"string\"}},\"description\":\"Minimal schema for testing structured LLM completions.\",\"properties\":{\"qualifiers\":{\"items\":{\"type\":\"string\"},\"title\":\"Qualifiers\",\"type\":\"array\"},\"subclaims\":{\"items\":{\"type\":\"string\"},\"title\":\"Subclaims\",\"type\":\"array\"},\"verdict_hint\":{\"$ref\":\"#/$defs/Verdict\",\"default\":\"INSUFFICIENT\"}},\"required\":[\"qualifiers\",\"subclaims\"],\"title\":\"SamplePlanOutput\",\"type\":\"object\"}",
+      "role": "system"
+    },
+    {
+      "content": "Check EV emissions",
+      "role": "user"
+    }
+  ],
+  "model": "test/cheap-v1",
+  "node": "planner",
+  "tokens": 35
+}

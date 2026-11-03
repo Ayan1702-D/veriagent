@@ -14,14 +14,13 @@ export function SourceCard({ source, verifiedQuote = false }: { source: Source; 
       <p>{source.domain}</p>
       <div className="source-footer">
         <span className={verifiedQuote ? "quote-badge verified" : "quote-badge"}>
-          <span aria-hidden="true">{verifiedQuote ? "✓" : "○"}</span>
-          {verifiedQuote ? "Verified quote" : "Source captured"}
+          {verifiedQuote ? "quote verified" : "Cited source"}
         </span>
         {isCurated ? (
           <span className="source-origin">Stored corpus</span>
         ) : (
           <a href={source.url} target="_blank" rel="noopener noreferrer" aria-label={`Open source: ${source.title || source.domain}`}>
-            Open ↗
+            Open source
           </a>
         )}
       </div>

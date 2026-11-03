@@ -72,8 +72,8 @@ class CorpusSearchProvider:
         recorder: AuditRecorder | None = None,
     ) -> list[SearchResult]:
         """Search locally without blocking the API event loop."""
-        if budget is not None:
-            budget.consume("searches", 1)
+        # The search budget limits external provider requests. Local index
+        # lookups do not consume a web-search slot.
         hits = await asyncio.to_thread(self.retrieve, query, min(limit, self.top_k))
         if recorder is not None:
             recorder.record(

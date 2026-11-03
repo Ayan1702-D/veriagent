@@ -183,6 +183,7 @@ async def test_researcher_uses_curated_snapshot_and_extractor_verifies_quote() -
         "fetch_fn": forbidden_fetch,
     }
     researched = await run_researcher_node(state)  # type: ignore[arg-type]
+    assert budget.usage()["searches"] == 0
     source = researched["sources"][0]
     snapshot = researched["snapshots"][source.id]
     extraction_state = {

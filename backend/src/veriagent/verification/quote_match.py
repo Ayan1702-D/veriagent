@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from rapidfuzz import fuzz
 
+from veriagent.config import get_settings
+
 
 @dataclass(frozen=True)
 class MatchResult:
@@ -40,13 +42,14 @@ def _normalize_text(text: str) -> str:
 def verify_quote(
     quote: str,
     snapshot_text: str,
-    threshold: float = 85.0,
+    threshold: float | None = None,
 ) -> MatchResult:
     """Fuzzy-match quote against stored snapshot without an LLM.
 
     Returns MatchResult indicating whether the quote exists, the match score (0-100),
     and the approximate (start, end) character span in the snapshot.
     """
+    threshold = get_settings().quote_match_threshold if threshold is None else threshold
     clean_quote = _normalize_text(quote)
     clean_snapshot = _normalize_text(snapshot_text)
 
@@ -57,13 +60,21 @@ def verify_quote(
     snapshot_lower = clean_snapshot.casefold()
 
     # Exact match after Unicode and whitespace normalization.
-    exact_idx = snapshot_lower.find(quote_lower)
-    if exact_idx != -1:
-        return MatchResult(
-            found=True,
-            score=100.0,
-            span=(exact_idx, exact_idx + len(clean_quote)),
-        )
+
+    def numbers_match(start: int, end: int) -> bool:
+        """Compare complete numeric tokens overlapping the candidate span."""
+        pattern = r"[+-]?\d+(?:[.,]\d+)*"
+        quote_numbers = re.findall(pattern, quote_lower)
+        span_numbers = [
+            m.group()
+            for m in re.finditer(pattern, snapshot_lower)
+            if m.start() < end and m.end() > start
+        ]
+        return quote_numbers == span_numbers
+
+    for exact in re.finditer(re.escape(quote_lower), snapshot_lower):
+        if numbers_match(exact.start(), exact.end()):
+            return MatchResult(found=True, score=100.0, span=exact.span())
 
     # Fuzzy matching fallback.
 
@@ -74,7 +85,7 @@ def verify_quote(
 
     score = round(float(alignment.score), 2)
 
-    if score >= threshold:
+    if score >= threshold and numbers_match(alignment.dest_start, alignment.dest_end):
         span = (alignment.dest_start, alignment.dest_end)
         return MatchResult(found=True, score=score, span=span)
 

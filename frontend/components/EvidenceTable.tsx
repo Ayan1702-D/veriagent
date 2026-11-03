@@ -30,13 +30,13 @@ export function EvidenceTable({ findings }: { findings: Finding[] }) {
         <tbody>
           {findings.map((finding) => (
             <tr key={finding.subclaim_id}>
-              <th scope="row">
+              <th scope="row" data-label="Subclaim">
                 {finding.subclaim_id}
                 {finding.gaps.length > 0 && <small>{finding.gaps[0]}</small>}
               </th>
-              <td><EvidenceLinks ids={finding.supporting} empty="No linked support" /></td>
-              <td><EvidenceLinks ids={finding.contradicting} empty="No contradiction" /></td>
-              <td>
+              <td data-label="Supporting"><EvidenceLinks ids={finding.supporting} empty="No linked support" /></td>
+              <td data-label="Contradicting"><EvidenceLinks ids={finding.contradicting} empty="No contradiction" /></td>
+              <td data-label="Conclusion">
                 <VerdictBadge verdict={finding.verdict} compact />
                 <small>{Math.round(finding.confidence * 100)}% confidence</small>
               </td>

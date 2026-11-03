@@ -1,0 +1,1 @@
+{"id": "case-1", "claim": "A valid claim.", "expected_verdict": "MIXED", "expected_domains": ["WWW.Example.org"]}

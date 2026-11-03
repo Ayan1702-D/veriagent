@@ -4,8 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from veriagent.audit.recorder import AuditRecorder
 from veriagent.core.budget import BudgetGovernor
-from veriagent.llm.client import LLMProtocol
-from veriagent.schemas import Evidence, Stance, Verdict
+from veriagent.llm.client import LLMProtocol, load_prompt
+from veriagent.schemas import Evidence, Finding, Stance, Verdict
 
 
 class EntailmentItem(BaseModel):
@@ -54,11 +54,7 @@ def check_support(
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are the VeriAgent Entailment Verifier. For each evidence quote, decide if it "
-                "'supports', 'contradicts', or is 'not_related' to the conclusion. "
-                "Provide a one-line reason. Respond strictly in valid JSON matching the schema."
-            ),
+            "content": load_prompt("verifier") + " Evaluate each quote against the conclusion.",
         },
         {
             "role": "user",
@@ -88,6 +84,8 @@ def check_support(
             else:
                 new_stance = Stance.NEUTRAL
             updated.append(ev.model_copy(update={"stance": new_stance}))
+        elif ev.quote_verified:
+            updated.append(ev.model_copy(update={"stance": Stance.NEUTRAL}))
         else:
             updated.append(ev)
 
@@ -104,11 +102,7 @@ def build_counter_queries(
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are the VeriAgent Adversarial Analyst. Given a tentative conclusion, "
-                "generate 2 to 4 search queries targeted specifically at finding counter-evidence, "
-                "edge-cases, or refuting data. Respond strictly in valid JSON matching the schema."
-            ),
+            "content": load_prompt("verifier") + " Generate 2 to 4 counter-evidence queries.",
         },
         {"role": "user", "content": f"Tentative Conclusion: {conclusion}"},
     ]
@@ -123,14 +117,15 @@ def build_counter_queries(
     return res.queries
 
 
-def apply_unsupported_claim_rule(
-    tentative_verdict: Verdict,
-    evidence_list: list[Evidence],
-) -> Verdict:
-    """Enforce rule: a conclusion with zero verified supporting quotes must be INSUFFICIENT."""
-    supporting_verified = [
-        e for e in evidence_list if e.quote_verified and e.stance == Stance.SUPPORTS
-    ]
-    if len(supporting_verified) == 0:
-        return Verdict.INSUFFICIENT
-    return tentative_verdict
+def apply_unsupported_claim_rule(finding: Finding, evidence_list: list[Evidence]) -> Verdict:
+    """Require verified evidence linked to this finding in each verdict's direction."""
+    verified = {e.id for e in evidence_list if e.quote_verified}
+    supports = bool(verified.intersection(finding.supporting))
+    contradicts = bool(verified.intersection(finding.contradicting))
+    allowed = {
+        Verdict.SUPPORTED: supports,
+        Verdict.REFUTED: contradicts,
+        Verdict.MIXED: supports and contradicts,
+        Verdict.CONDITIONAL: supports or contradicts,
+    }
+    return finding.verdict if allowed.get(finding.verdict, False) else Verdict.INSUFFICIENT

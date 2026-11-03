@@ -5,6 +5,7 @@ import socket
 import httpx
 import pytest
 
+from veriagent.audit.recorder import AuditRecorder
 from veriagent.core.errors import SecurityViolationError, VeriAgentError
 from veriagent.core.security import validate_and_resolve_url
 from veriagent.ranking.dedupe import deduplicate_sources
@@ -12,7 +13,11 @@ from veriagent.ranking.scorer import SourceScorer
 from veriagent.schemas import Source, SourceType
 from veriagent.tools.fetch import fetch_url
 from veriagent.tools.parse import parse_html_to_snapshot
-from veriagent.tools.search import OpenAlexSearchProvider, WikipediaSearchProvider
+from veriagent.tools.search import (
+    DuckDuckGoSearchProvider,
+    OpenAlexSearchProvider,
+    WikipediaSearchProvider,
+)
 
 
 def test_ssrf_rejects_loopback_and_metadata_addresses() -> None:
@@ -28,6 +33,52 @@ def test_ssrf_rejects_loopback_and_metadata_addresses() -> None:
     # Prohibited scheme
     with pytest.raises(SecurityViolationError, match="Prohibited URL scheme"):
         validate_and_resolve_url("file:///etc/passwd")
+
+
+@pytest.mark.asyncio
+async def test_ddgs_search_maps_results_and_audits_provider_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """DDGS results become SearchResults; provider failures stay visible in audit."""
+    from veriagent.tools.search import ddg as ddg_module
+
+    class WorkingSearch:
+        def __init__(self, timeout: int) -> None:
+            assert timeout == 8
+
+        def __enter__(self) -> "WorkingSearch":
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def text(self, query: str, max_results: int) -> list[dict[str, str]]:
+            assert query == "France protests"
+            assert max_results == 2
+            return [
+                {
+                    "title": "France protests continue",
+                    "href": "https://example.org/news",
+                    "body": "Report",
+                }
+            ]
+
+    monkeypatch.setattr(ddg_module, "DDGS", WorkingSearch)
+    recorder = AuditRecorder(run_id="run-ddgs")
+    provider = DuckDuckGoSearchProvider()
+    results = await provider.search("France protests", limit=2, recorder=recorder)
+    assert results[0].url == "https://example.org/news"
+    assert results[0].provider == "ddgs"
+    assert recorder.events()[0].payload["hit_count"] == 1
+
+    class BrokenSearch(WorkingSearch):
+        def text(self, query: str, max_results: int) -> list[dict[str, str]]:
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(ddg_module, "DDGS", BrokenSearch)
+    assert await provider.search("France protests", limit=2, recorder=recorder) == []
+    assert recorder.events()[-1].type == "search_failed"
+    assert recorder.events()[-1].payload["reason"] == "RuntimeError"
 
 
 def test_ssrf_resolves_dns_and_blocks_private_targets() -> None:
@@ -65,6 +116,8 @@ async def test_fetch_url_respects_mocked_http_and_type_check() -> None:
             return httpx.Response(
                 200, headers={"Content-Type": "application/octet-stream"}, content=b"\x00\x01\x02"
             )
+        if url == "http://example.com/blocked":
+            return httpx.Response(403, headers={"Content-Type": "text/html"}, text="Access denied")
         return httpx.Response(404)
 
     transport = httpx.MockTransport(handler)
@@ -77,6 +130,9 @@ async def test_fetch_url_respects_mocked_http_and_type_check() -> None:
         # Unsupported content-type rejection
         with pytest.raises(VeriAgentError, match="Unsupported content-type"):
             await fetch_url("http://example.com/binary", client=client)
+
+        with pytest.raises(VeriAgentError, match="HTTP 403"):
+            await fetch_url("http://example.com/blocked", client=client)
 
 
 def test_parse_html_to_snapshot() -> None:

@@ -24,6 +24,7 @@ class GraphState(TypedDict):
     subquestions: list[SubQuestion]
     sources: list[Source]
     snapshots: dict[str, str]  # source_id -> raw clean text snapshot
+    extracted_source_ids: NotRequired[list[str]]
     evidence: list[Evidence]
     findings: list[Finding]
     report: Report | None

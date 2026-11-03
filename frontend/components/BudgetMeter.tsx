@@ -1,39 +1,26 @@
 import type { BudgetUsage, RunBudget } from "@/lib/types";
 
-const METERS = [
-  ["tokens", "Tokens", "max_llm_tokens"],
-  ["searches", "Searches", "max_searches"],
-  ["fetches", "Fetches", "max_fetches"],
-  ["loops", "Loops", "max_loops"],
-] as const;
-
 export function BudgetMeter({ budget, usage }: { budget: RunBudget; usage: BudgetUsage }) {
-  return (
-    <section className="budget-panel" aria-labelledby="budget-title">
-      <div className="section-kicker"><span>Guardrails</span><span>Hard limits</span></div>
-      <h2 id="budget-title">Run budget</h2>
-      <div className="budget-list">
-        {METERS.map(([usageKey, label, budgetKey]) => {
-          const used = usage[usageKey] ?? 0;
-          const maximum = budget[budgetKey];
-          const percent = maximum === 0 ? 0 : Math.min(100, (used / maximum) * 100);
-          return (
-            <div className="budget-row" key={usageKey}>
-              <div><span>{label}</span><span>{used.toLocaleString()} / {maximum.toLocaleString()}</span></div>
-              <div
-                className="meter-track"
-                role="progressbar"
-                aria-label={`${label} budget used`}
-                aria-valuemin={0}
-                aria-valuemax={maximum}
-                aria-valuenow={used}
-              >
-                <span style={{ width: `${percent}%` }} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
+  const incoming = {
+    tokens: usage.tokens ?? 0,
+    searches: usage.searches ?? 0,
+    seconds: usage.seconds ?? 0,
+  };
+  const meters = [
+    ["Tokens", incoming.tokens, budget.max_llm_tokens],
+    ["Searches", incoming.searches, budget.max_searches],
+    ["Time", Math.round(incoming.seconds), budget.max_seconds],
+  ] as const;
+  return <section className="budget-panel" aria-labelledby="budget-title">
+    <h2 id="budget-title" className="eyebrow">Budget</h2>
+    {meters.map(([label, used, maximum]) => {
+      const percent = maximum ? Math.min(100, used / maximum * 100) : 0;
+      return <div className={`budget-row ${percent >= 80 ? "warning" : ""}`} key={label}>
+        <div><span>{label}</span><span>{used.toLocaleString()} / {maximum.toLocaleString()}{label === "Time" ? "s" : ""}</span></div>
+        <div className="meter-track" role="progressbar" aria-label={`${label} used`} aria-valuemin={0} aria-valuemax={maximum} aria-valuenow={used}>
+          <span style={{ width: `${percent}%` }} />
+        </div>
+      </div>;
+    })}
+  </section>;
 }

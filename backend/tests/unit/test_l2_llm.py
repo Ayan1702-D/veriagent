@@ -1,5 +1,6 @@
 """Unit tests for the L2 LLM layer: router, cassette cache, LLMClient, and FakeLLM."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -238,7 +239,11 @@ def test_llm_client_retries_on_transient_error_and_validation_failure() -> None:
     assert attempts == 3
     assert sleeps == [0.25]
     assert budget.usage()["tokens"] == 25
-    assert len(recorder.events()) == 2
+    assert [event.type for event in recorder.events()] == [
+        "llm_call",
+        "llm_validation_failed",
+        "llm_call",
+    ]
 
 
 def test_llm_client_uses_fallback_model_and_audits_actual_model() -> None:
@@ -298,6 +303,44 @@ def test_llm_client_raises_validation_error_after_second_bad_output() -> None:
         )
 
 
+def test_invalid_first_response_records_cause_when_repair_call_fails() -> None:
+    """Make the failed repair visible without exposing the provider response body."""
+    calls = 0
+    sent_messages: list[dict[str, str]] = []
+
+    def completion(**kwargs: Any) -> dict[str, Any]:
+        nonlocal calls
+        calls += 1
+        sent_messages.extend(kwargs["messages"] if calls == 1 else [])
+        if calls == 1:
+            return {
+                "choices": [{"message": {"content": '{"qualifiers": []}'}}],
+                "usage": {"total_tokens": 9},
+            }
+        raise RuntimeError("private provider response")
+
+    recorder = AuditRecorder(run_id="run-repair-failure")
+    client = LLMClient(
+        ModelRouter(Settings()),
+        max_retries=1,
+        completion_fn=completion,
+    )
+    with pytest.raises(LLMOutputValidationError, match=r"repair call failed.*RuntimeError") as exc:
+        client.complete(
+            node="planner",
+            messages=[{"role": "user", "content": "Plan this claim"}],
+            response_model=SamplePlanOutput,
+            recorder=recorder,
+        )
+
+    assert "private provider response" not in str(exc.value)
+    assert "subclaims" in sent_messages[0]["content"]
+    assert [event.type for event in recorder.events()] == [
+        "llm_call",
+        "llm_validation_failed",
+    ]
+
+
 def test_llm_client_respects_budget_cap() -> None:
     """Verify LLMClient raises BudgetExceeded when token usage crosses the cap."""
     settings = Settings()
@@ -320,3 +363,93 @@ def test_llm_client_respects_budget_cap() -> None:
             budget=budget,
         )
     assert exc_info.value.kind == "tokens"
+
+
+def test_llm_client_caps_each_request_and_skips_unavailable_model_retries() -> None:
+    """Model fallback should be bounded by the run budget and move past provider outages."""
+
+    class ServiceUnavailableError(Exception):
+        pass
+
+    calls: list[dict[str, Any]] = []
+
+    def completion(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        if kwargs["model"] == "test/primary":
+            raise ServiceUnavailableError("provider unavailable")
+        return {
+            "choices": [{"message": {"content": '{"qualifiers": [], "subclaims": ["A"]}'}}],
+            "usage": {"total_tokens": 20},
+        }
+
+    client = LLMClient(
+        ModelRouter(Settings(cheap_model="test/primary")),
+        completion_fn=completion,
+        fallback_models=["test/backup"],
+    )
+    budget = BudgetGovernor(RunBudget(max_llm_tokens=150, max_seconds=5))
+
+    result = client.complete(
+        node="planner",
+        messages=[{"role": "user", "content": "Plan"}],
+        response_model=SamplePlanOutput,
+        budget=budget,
+    )
+
+    assert result.subclaims == ["A"]
+    assert [call["model"] for call in calls] == ["test/primary", "test/backup"]
+    assert all(call["max_tokens"] <= 150 for call in calls)
+    assert all(0 < call["timeout"] <= 5 for call in calls)
+
+
+def test_json_repair_shares_operation_deadline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A malformed response must not give its repair a fresh timeout allowance."""
+    elapsed = [0.0]
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr("veriagent.llm.client.time.monotonic", lambda: elapsed[0])
+
+    def completion(**kwargs: Any) -> dict[str, Any]:
+        """Spend the operation window before returning malformed JSON."""
+        calls.append(kwargs)
+        elapsed[0] = 13.0
+        return {"choices": [{"message": {"content": "invalid"}}], "usage": {"total_tokens": 1}}
+
+    client = LLMClient(
+        ModelRouter(Settings(cheap_model="test/primary")),
+        completion_fn=completion,
+    )
+    with pytest.raises(LLMOutputValidationError):
+        client.complete(
+            node="planner",
+            messages=[{"role": "user", "content": "Plan"}],
+            response_model=SamplePlanOutput,
+        )
+
+    assert len(calls) == 1
+    assert calls[0]["num_retries"] == 0
+
+
+@pytest.mark.parametrize("with_system", [True, False])
+def test_schema_is_in_system_message_for_initial_and_repair_calls(with_system: bool) -> None:
+    """Every live request includes the schema without mutating caller-owned messages."""
+    calls: list[list[dict[str, str]]] = []
+
+    def completion(**kwargs: Any) -> dict[str, Any]:
+        """Require schema instructions on both the initial request and JSON repair."""
+        calls.append([dict(m) for m in kwargs["messages"]])
+        content = "invalid" if len(calls) == 1 else '{"qualifiers": [], "subclaims": ["A"]}'
+        return {"choices": [{"message": {"content": content}}], "usage": {"total_tokens": 1}}
+
+    messages = [{"role": "system", "content": "Original instructions"}] if with_system else []
+    messages.append({"role": "user", "content": "Test claim"})
+    original = [dict(m) for m in messages]
+    client = LLMClient(ModelRouter(Settings()), completion_fn=completion)
+    client.complete(node="planner", messages=messages, response_model=SamplePlanOutput)
+    assert len(calls) == 2
+    for call in calls:
+        assert call[0]["role"] == "system"
+        assert "Return only JSON" in call[0]["content"]
+        assert json.loads(call[0]["content"].split("matching this schema: ")[1]) == (
+            SamplePlanOutput.model_json_schema()
+        )
+    assert messages == original

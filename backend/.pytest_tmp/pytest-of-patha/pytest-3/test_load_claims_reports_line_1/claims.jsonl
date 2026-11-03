@@ -1,0 +1,2 @@
+{"id":"duplicate","claim":"First claim","expected_verdict":"SUPPORTED"}
+{"id":"duplicate","claim":"Second claim","expected_verdict":"REFUTED"}

@@ -69,6 +69,9 @@ async def fetch_url(
                 target_url = validate_and_resolve_url(next_url)
                 continue
 
+            if resp.status_code >= 400:
+                raise VeriAgentError(f"HTTP {resp.status_code} while fetching source")
+
             content_type = resp.headers.get("content-type", "").lower()
             if not any(content_type.startswith(p) for p in _ALLOWED_CONTENT_PREFIXES):
                 raise VeriAgentError(f"Unsupported content-type: {content_type}")

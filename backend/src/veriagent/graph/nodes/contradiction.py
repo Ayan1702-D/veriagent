@@ -4,7 +4,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from veriagent.core.errors import BudgetExceededError, VeriAgentError
 from veriagent.graph.state import GraphState
+from veriagent.llm.client import load_prompt
 from veriagent.schemas import Finding, Verdict
 
 
@@ -37,6 +39,28 @@ def run_contradiction_node(state: GraphState) -> dict[str, Any]:
     budget = state["budget"]
     recorder = state.get("recorder")
 
+    if not evidence:
+        insufficient_findings = [
+            Finding(
+                subclaim_id=subclaim,
+                gaps=["No verified evidence was retrieved for this subclaim."],
+                verdict=Verdict.INSUFFICIENT,
+                confidence=0.0,
+            )
+            for subclaim in (claim.atomic_subclaims or [claim.text])
+        ]
+        if recorder is not None:
+            recorder.record(
+                node="contradiction",
+                type="analysis_completed",
+                payload={
+                    "findings_count": len(insufficient_findings),
+                    "has_gaps": True,
+                    "reason": "no_evidence",
+                },
+            )
+        return {"findings": insufficient_findings, "has_gaps": True}
+
     evidence_summary = [
         {
             "id": e.id,
@@ -51,13 +75,7 @@ def run_contradiction_node(state: GraphState) -> dict[str, Any]:
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are the VeriAgent Contradiction Analyst. For each atomic "
-                "subclaim, categorize supporting and contradicting evidence IDs, "
-                "identify scope conflicts or factual gaps, and assign a tentative "
-                "verdict (SUPPORTED, REFUTED, MIXED, CONDITIONAL, INSUFFICIENT). "
-                "Respond strictly in valid JSON matching the schema."
-            ),
+            "content": load_prompt("contradiction"),
         },
         {
             "role": "user",
@@ -70,13 +88,34 @@ def run_contradiction_node(state: GraphState) -> dict[str, Any]:
         },
     ]
 
-    analysis: ContradictionOutput = llm.complete(
-        node="contradiction",
-        messages=messages,
-        response_model=ContradictionOutput,
-        budget=budget,
-        recorder=recorder,
-    )
+    try:
+        analysis: ContradictionOutput = llm.complete(
+            node="contradiction",
+            messages=messages,
+            response_model=ContradictionOutput,
+            budget=budget,
+            recorder=recorder,
+        )
+    except (BudgetExceededError, VeriAgentError) as exc:
+        if recorder is not None:
+            recorder.record(
+                node="contradiction",
+                type="llm_unavailable",
+                payload={"reason": type(exc).__name__},
+            )
+        return {
+            "budget_exhausted": isinstance(exc, BudgetExceededError),
+            "findings": [
+                Finding(
+                    subclaim_id=subclaim,
+                    gaps=["Evidence analysis could not complete; no verdict was assigned."],
+                    verdict=Verdict.INSUFFICIENT,
+                    confidence=0.0,
+                )
+                for subclaim in (claim.atomic_subclaims or [claim.text])
+            ],
+            "has_gaps": True,
+        }
 
     findings: list[Finding] = []
     has_gaps = False

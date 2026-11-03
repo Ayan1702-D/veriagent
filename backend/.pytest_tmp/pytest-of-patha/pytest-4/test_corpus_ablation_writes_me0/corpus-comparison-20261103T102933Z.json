@@ -1,0 +1,147 @@
+{
+  "generated_at": "2026-11-03T10:29:33.421338+00:00",
+  "without_corpus": {
+    "generated_at": "2026-11-03T10:29:33.421268Z",
+    "mode": "without-corpus",
+    "dataset_size": 1,
+    "retrieval_precision": 0.0,
+    "citation_validity": 0.0,
+    "classification_accuracy": 0.0,
+    "unsupported_claim_rate": 0.0,
+    "human_agreement": 0.0,
+    "adjacent_agreement": 0.0,
+    "confusion_matrix": {
+      "SUPPORTED": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 1
+      },
+      "REFUTED": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "MIXED": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "CONDITIONAL": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "INSUFFICIENT": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      }
+    },
+    "verdict_distribution": {
+      "SUPPORTED": 0,
+      "REFUTED": 0,
+      "MIXED": 0,
+      "CONDITIONAL": 0,
+      "INSUFFICIENT": 1
+    },
+    "cases": [
+      {
+        "case_id": "case-1",
+        "predicted_verdict": "INSUFFICIENT",
+        "expected_verdict": "SUPPORTED",
+        "human_verdict": "SUPPORTED",
+        "retrieval_precision": 0.0,
+        "citation_validity": 0.0,
+        "unsupported_claim_rate": 0.0,
+        "exact_match": false,
+        "adjacent_human_match": false
+      }
+    ]
+  },
+  "with_corpus": {
+    "generated_at": "2026-11-03T10:29:33.421338Z",
+    "mode": "with-corpus",
+    "dataset_size": 1,
+    "retrieval_precision": 1.0,
+    "citation_validity": 1.0,
+    "classification_accuracy": 1.0,
+    "unsupported_claim_rate": 0.0,
+    "human_agreement": 1.0,
+    "adjacent_agreement": 0.0,
+    "confusion_matrix": {
+      "SUPPORTED": {
+        "SUPPORTED": 1,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "REFUTED": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "MIXED": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "CONDITIONAL": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      },
+      "INSUFFICIENT": {
+        "SUPPORTED": 0,
+        "REFUTED": 0,
+        "MIXED": 0,
+        "CONDITIONAL": 0,
+        "INSUFFICIENT": 0
+      }
+    },
+    "verdict_distribution": {
+      "SUPPORTED": 1,
+      "REFUTED": 0,
+      "MIXED": 0,
+      "CONDITIONAL": 0,
+      "INSUFFICIENT": 0
+    },
+    "cases": [
+      {
+        "case_id": "case-1",
+        "predicted_verdict": "SUPPORTED",
+        "expected_verdict": "SUPPORTED",
+        "human_verdict": "SUPPORTED",
+        "retrieval_precision": 1.0,
+        "citation_validity": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "exact_match": true,
+        "adjacent_human_match": false
+      }
+    ]
+  },
+  "delta_with_minus_without": {
+    "retrieval_precision": 1.0,
+    "citation_validity": 1.0,
+    "classification_accuracy": 1.0,
+    "unsupported_claim_rate": 0.0,
+    "human_agreement": 1.0,
+    "adjacent_agreement": 0.0
+  }
+}

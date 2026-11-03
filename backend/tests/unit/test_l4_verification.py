@@ -1,7 +1,9 @@
 """Unit tests for L4 verification: quote matching, entailment, and unsupported claims."""
 
+import pytest
+
 from veriagent.llm.fake import FakeLLM
-from veriagent.schemas import Evidence, Stance, Verdict
+from veriagent.schemas import Evidence, Finding, Stance, Verdict
 from veriagent.verification import (
     apply_unsupported_claim_rule,
     build_counter_queries,
@@ -108,33 +110,82 @@ def test_build_counter_queries() -> None:
     assert "coal" in queries[0]
 
 
-def test_unsupported_claim_rule_enforcement() -> None:
-    """Verify conclusion with zero verified supporting quotes defaults to INSUFFICIENT."""
-    # 1. Unverified evidence marked SUPPORTS -> must still become INSUFFICIENT
-    ev_unverified = Evidence(
-        source_id="s1",
-        quote="EVs are always green",
-        stance=Stance.SUPPORTS,
-        quote_verified=False,
+@pytest.mark.parametrize(
+    "verdict,supports,contradicts,expected",
+    [
+        (Verdict.SUPPORTED, True, False, Verdict.SUPPORTED),
+        (Verdict.SUPPORTED, False, True, Verdict.INSUFFICIENT),
+        (Verdict.REFUTED, False, True, Verdict.REFUTED),
+        (Verdict.REFUTED, True, False, Verdict.INSUFFICIENT),
+        (Verdict.MIXED, True, True, Verdict.MIXED),
+        (Verdict.MIXED, True, False, Verdict.INSUFFICIENT),
+        (Verdict.CONDITIONAL, False, True, Verdict.CONDITIONAL),
+        (Verdict.CONDITIONAL, True, False, Verdict.CONDITIONAL),
+        (Verdict.CONDITIONAL, False, False, Verdict.INSUFFICIENT),
+        (Verdict.INSUFFICIENT, True, True, Verdict.INSUFFICIENT),
+    ],
+)
+def test_unsupported_claim_rule_enforcement(
+    verdict: Verdict,
+    supports: bool,
+    contradicts: bool,
+    expected: Verdict,
+) -> None:
+    """Only verified IDs linked in the correct finding direction authorize verdicts."""
+    evidence = Evidence(source_id="s1", quote="Verified evidence", quote_verified=True)
+    finding = Finding(
+        subclaim_id="claim",
+        verdict=verdict,
+        supporting=[evidence.id] if supports else [],
+        contradicting=[evidence.id] if contradicts else [],
     )
-    assert apply_unsupported_claim_rule(Verdict.SUPPORTED, [ev_unverified]) == Verdict.INSUFFICIENT
-
-    # 2. Verified evidence marked CONTRADICTS -> must become INSUFFICIENT for SUPPORTED verdict
-    ev_contradicting = Evidence(
-        source_id="s1",
-        quote="EVs emit more in coal grids",
-        stance=Stance.CONTRADICTS,
-        quote_verified=True,
-    )
+    assert apply_unsupported_claim_rule(finding, [evidence]) == expected
+    assert apply_unsupported_claim_rule(finding, []) == Verdict.INSUFFICIENT
     assert (
-        apply_unsupported_claim_rule(Verdict.SUPPORTED, [ev_contradicting]) == Verdict.INSUFFICIENT
+        apply_unsupported_claim_rule(
+            finding, [evidence.model_copy(update={"quote_verified": False})]
+        )
+        == Verdict.INSUFFICIENT
     )
 
-    # 3. Verified evidence marked SUPPORTS -> retains tentative verdict
-    ev_supporting = Evidence(
-        source_id="s1",
-        quote="Renewable grids yield instant reductions",
-        stance=Stance.SUPPORTS,
+
+@pytest.mark.parametrize(
+    "quote,snapshot",
+    [
+        ("The reduction was 40 percent.", "The reduction was 90 percent."),
+        ("40 percent", "140 percent"),
+        ("It was 5 degrees", "It was -5 degrees"),
+        ("Travel for 70,000 kilometers", "Travel for 90,000 kilometers"),
+        ("Temperature reached 1.5 degrees", "Temperature reached 1.8 degrees"),
+    ],
+)
+def test_quote_match_rejects_changed_numeric_tokens(quote: str, snapshot: str) -> None:
+    """Similar prose cannot conceal a changed number, even at a low threshold."""
+    assert not verify_quote(quote, snapshot, threshold=50).found
+
+
+def test_quote_match_uses_configured_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The configured threshold controls fuzzy matches when no override is supplied."""
+    from veriagent.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "quote_match_threshold", 100.0)
+    assert not verify_quote("The car is blue.", "The car is bluu.").found
+    assert verify_quote("The car is blue.", "The car is bluu.", threshold=70).found
+
+
+def test_quote_match_finds_valid_number_after_invalid_substring() -> None:
+    """A preceding larger number cannot hide a later exact quote."""
+    assert verify_quote("40 percent", "140 percent previously; 40 percent now").found
+
+
+def test_entailment_omissions_do_not_reuse_extractor_stance() -> None:
+    """Missing entailment decisions remain neutral for that finding."""
+    evidence = Evidence(
+        source_id="source",
+        quote="A verified quotation.",
         quote_verified=True,
+        stance=Stance.SUPPORTS,
     )
-    assert apply_unsupported_claim_rule(Verdict.CONDITIONAL, [ev_supporting]) == Verdict.CONDITIONAL
+    updated = check_support("Test conclusion", [evidence], FakeLLM({"verifier": {}}))
+    assert updated[0].stance == Stance.NEUTRAL
+    assert evidence.stance == Stance.SUPPORTS

@@ -51,6 +51,8 @@ def _default_search_providers(
     providers: list[SearchProvider] = []
     if settings.corpus_enabled:
         providers.append(CorpusSearchProvider(corpus_index, top_k=settings.corpus_top_k))
+    if settings.tavily_api_key:
+        providers.append(TavilySearchProvider(settings.tavily_api_key))
     providers.extend(
         [
             DuckDuckGoSearchProvider(),
@@ -58,8 +60,6 @@ def _default_search_providers(
             OpenAlexSearchProvider(mailto=settings.openalex_mailto),
         ]
     )
-    if settings.tavily_api_key:
-        providers.append(TavilySearchProvider(settings.tavily_api_key))
     return providers
 
 

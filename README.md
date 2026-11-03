@@ -78,7 +78,7 @@ evidence currently available in this repository.
 | API | Python 3.11, FastAPI, Pydantic v2 |
 | Workflow | LangGraph |
 | Models | LiteLLM; Gemini 3.6 Flash for routine stages and Gemini 3.8 Flash for synthesis |
-| Retrieval | DuckDuckGo, Wikipedia, OpenAlex, optional Tavily |
+| Retrieval | DDGS metasearch, Wikipedia, OpenAlex, optional Tavily |
 | Curated RAG | FastEmbed, ChromaDB, pypdf |
 | Persistence | SQLAlchemy, SQLite by default |
 | Frontend | Next.js App Router, React, TypeScript, Tailwind CSS |

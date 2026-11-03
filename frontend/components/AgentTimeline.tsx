@@ -1,40 +1,41 @@
 import type { AuditEvent, RunStatus } from "@/lib/types";
 
-const AGENTS = [
-  ["planner", "Frame", "break the claim apart"],
-  ["researcher", "Seek", "find independent sources"],
-  ["extractor", "Quote", "lift exact evidence"],
-  ["contradiction", "Cross-check", "map disagreements"],
-  ["verifier", "Verify", "test quote support"],
-  ["reporter", "Conclude", "calibrate the verdict"],
+const NODES = [
+  ["planner", "Planner"], ["researcher", "Researcher"], ["extractor", "Extractor"],
+  ["contradiction", "Contradiction"], ["verifier", "Verifier"], ["reporter", "Report"],
 ] as const;
+
+function summary(node: string, events: AuditEvent[]): string {
+  const event = [...events].reverse().find((item) => item.node === node);
+  if (!event) return "waiting";
+  const p = event.payload;
+  if (node === "planner") return `${p.subquestions_count ?? p.subclaims_count ?? "—"} subclaims · qualifiers found`;
+  if (node === "researcher") return `${p.total_sources ?? "—"} sources · snapshots stored`;
+  if (node === "extractor") return `${p.extracted_count ?? "—"} quotes · ${p.verified_quotes_count ?? "—"} verified`;
+  if (node === "contradiction") return `${p.findings_count ?? "—"} findings · gaps checked`;
+  if (node === "verifier") return `${p.counter_queries_added ?? 0} counter-queries added`;
+  if (node === "reporter") return `verdict · ${String(p.verdict ?? "complete").toLowerCase()}`;
+  return event.type.replaceAll("_", " ");
+}
 
 export function AgentTimeline({ events, status }: { events: AuditEvent[]; status: RunStatus }) {
   const seen = new Set(events.map((event) => event.node));
-  const lastAgent = [...events].reverse().find((event) => AGENTS.some(([id]) => id === event.node))?.node;
-
+  const lastNode = [...events].reverse().find((event) => NODES.some(([id]) => id === event.node))?.node;
+  const loop = [...events].reverse().find((event) => event.type === "loop_back");
   return (
-    <section className="timeline-panel" aria-labelledby="timeline-title">
-      <div className="section-kicker"><span>Live fieldwork</span><span>{events.length} signals</span></div>
-      <h2 id="timeline-title">Agent relay</h2>
-      <ol className="agent-timeline">
-        {AGENTS.map(([id, label, description], index) => {
-          const complete = seen.has(id);
-          const active = status === "running" && lastAgent === id;
-          return (
-            <li key={id} className={active ? "active" : complete ? "complete" : "pending"}>
-              <div className="agent-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</div>
-              <div>
-                <strong>{label}</strong>
-                <span>{description}</span>
-              </div>
-              <span className="agent-state">
-                <span className="sr-only">{active ? "Active" : complete ? "Complete" : "Waiting"}</span>
-              </span>
-            </li>
-          );
+    <section aria-labelledby="timeline-title">
+      <h2 id="timeline-title" className="eyebrow">Pipeline</h2>
+      <ol className="agent-timeline" aria-live="polite">
+        {NODES.map(([id, label], index) => {
+          const active = status === "running" && lastNode === id;
+          const done = seen.has(id) && !active;
+          return <li key={id} className={active ? "live" : done ? "done" : "queued"}>
+            <span className="node-dot" aria-hidden="true" />
+            <div><strong>{String(index + 1).padStart(2, "0")} {label}</strong><small>{summary(id, events)}</small></div>
+          </li>;
         })}
       </ol>
+      {loop && <p className="loop-note">Loop {String(loop.payload.loop_count ?? "—")} · {String(loop.payload.reason ?? "evidence gap")}</p>}
     </section>
   );
 }

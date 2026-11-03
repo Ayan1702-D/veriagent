@@ -1,5 +1,6 @@
 """L6 API, persistence, SSE, replay, and security tests."""
 
+import ast
 from typing import Any
 
 import pytest
@@ -64,7 +65,46 @@ async def fake_fetch(
 
 def build_fake_llm() -> FakeLLM:
     """Return graph responses for a single successful run."""
-    return FakeLLM(
+
+    class LinkedFakeLLM(FakeLLM):
+        """Provide valid evidence links for the successful API lifecycle fixture."""
+
+        def complete(self, *args: Any, **kwargs: Any) -> Any:
+            """Link findings and entailment replies to the actual extracted quote."""
+            if kwargs["node"] == "contradiction":
+                content = kwargs["messages"][1]["content"]
+                evidence_id = ast.literal_eval(content.split("Evidence: ")[1])[0]["id"]
+                self.register(
+                    "contradiction",
+                    {
+                        "subclaim_findings": [
+                            {
+                                "subclaim": "EV emissions depend on grid mix",
+                                "supporting_evidence_ids": [evidence_id],
+                                "verdict": "SUPPORTED",
+                                "confidence": 0.9,
+                            }
+                        ]
+                    },
+                )
+                self.register(
+                    "verifier",
+                    [
+                        {
+                            "evaluations": [
+                                {
+                                    "evidence_id": evidence_id,
+                                    "label": "supports",
+                                    "reason": "Supports the grid dependency",
+                                }
+                            ]
+                        },
+                        {"queries": []},
+                    ],
+                )
+            return super().complete(*args, **kwargs)
+
+    return LinkedFakeLLM(
         responses={
             "planner": {
                 "qualifiers": [],

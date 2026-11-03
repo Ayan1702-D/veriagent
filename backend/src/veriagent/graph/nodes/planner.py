@@ -1,11 +1,13 @@
 """Planner node: decomposes claim, detects scope qualifiers, and outputs subquestions."""
 
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from veriagent.core.errors import BudgetExceededError
 from veriagent.graph.state import GraphState
+from veriagent.llm.client import LLMOutputValidationError, load_prompt
 from veriagent.schemas import SubQuestion
 
 _KNOWN_QUALIFIERS = ("always", "never", "all", "regardless", "none", "every", "only")
@@ -30,17 +32,14 @@ def run_planner_node(state: GraphState) -> dict[str, Any]:
     recorder = state.get("recorder")
 
     claim_lower = claim.text.lower()
-    heuristic_qualifiers = [q for q in _KNOWN_QUALIFIERS if q in claim_lower]
+    heuristic_qualifiers = [
+        q for q in _KNOWN_QUALIFIERS if re.search(rf"\b{re.escape(q)}\b", claim_lower)
+    ]
 
     messages = [
         {
             "role": "system",
-            "content": (
-                "You are the VeriAgent Planner. Decompose the user claim into atomic subclaims, "
-                "detect qualifiers ('always', 'regardless', 'all', etc.), and produce 1 to 3 "
-                "focused subquestions with 1 to 2 targeted search queries each. "
-                "Respond strictly in valid JSON matching the schema."
-            ),
+            "content": load_prompt("planner"),
         },
         {"role": "user", "content": f"Claim: {claim.text}"},
     ]
@@ -53,7 +52,14 @@ def run_planner_node(state: GraphState) -> dict[str, Any]:
             budget=budget,
             recorder=recorder,
         )
-    except BudgetExceededError:
+    except (BudgetExceededError, LLMOutputValidationError) as exc:
+        budget_exhausted = isinstance(exc, BudgetExceededError)
+        if recorder is not None:
+            recorder.record(
+                node="planner",
+                type="plan_fallback",
+                payload={"reason": "budget_exceeded" if budget_exhausted else "invalid_llm_output"},
+            )
         updated_claim = claim.model_copy(
             update={
                 "qualifiers": heuristic_qualifiers,
@@ -70,7 +76,7 @@ def run_planner_node(state: GraphState) -> dict[str, Any]:
         return {
             "claim": updated_claim,
             "subquestions": [fallback_question],
-            "budget_exhausted": True,
+            "budget_exhausted": budget_exhausted,
         }
     merged_qualifiers = list(dict.fromkeys(heuristic_qualifiers + plan.qualifiers))
     updated_claim = claim.model_copy(
